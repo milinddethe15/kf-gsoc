@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "centraldashboard.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "centraldashboard.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.deployment.replicas }}
+  selector:
+    matchLabels:
+      {{- include "centraldashboard.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "centraldashboard.selectorLabels" . | nindent 8 }}
+      annotations:
+        {{- toYaml .Values.deployment.annotations | nindent 8 }}
+    spec:
+      containers:
+      - name: centraldashboard
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.service.targetPort }}
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        ports:
+        - containerPort: {{ .Values.service.targetPort }}
+          protocol: TCP
+        env:
+        - name: USERID_HEADER
+          value: {{ .Values.env.USERID_HEADER }}
+        - name: USERID_PREFIX
+          value: {{ .Values.env.USERID_PREFIX }}
+        - name: PROFILES_KFAM_SERVICE_HOST
+          value: {{ .Values.env.PROFILES_KFAM_SERVICE_HOST }}
+        - name: REGISTRATION_FLOW
+          value: {{ .Values.env.REGISTRATION_FLOW | quote }}
+        - name: DASHBOARD_CONFIGMAP
+          value: {{ include "centraldashboard.fullname" . }}-config
+        - name: LOGOUT_URL
+          value: {{ .Values.env.LOGOUT_URL }}
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: COLLECT_METRICS
+          value: {{ .Values.env.COLLECT_METRICS | quote }}
+      serviceAccountName: {{ include "centraldashboard.serviceAccountName" . }}
